@@ -29,6 +29,10 @@ frappe.ui.form.on("JPL Project Approval Request", {
 
         if (frm.doc.__islocal) return;
 
+        // Suppress the Submit button — approval is handled via the custom flow, not doctype submit
+        frm.toolbar.can_submit = () => false;
+        frm.toolbar.set_primary_action();
+
         let matrix = frm.doc.approval_matrix || [];
         let has_pending = matrix.some(r => r.status === "Pending");
         let has_rejected = matrix.some(r => r.status === "Rejected");
@@ -41,7 +45,10 @@ frappe.ui.form.on("JPL Project Approval Request", {
             return;
         }
 
-        frm.add_custom_button(__("Add Review Comment"), () => open_review_dialog(frm));
+        // Only the active pending approver may add review comments
+        if (my_pending_row) {
+            frm.add_custom_button(__("Add Review Comment"), () => open_review_dialog(frm));
+        }
         setup_approval_buttons(frm);
 
         // Lock form for everyone except the active pending approver
