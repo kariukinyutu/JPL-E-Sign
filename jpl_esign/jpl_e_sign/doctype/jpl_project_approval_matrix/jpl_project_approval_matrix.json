@@ -18,7 +18,7 @@
    "fieldtype": "Select",
    "in_list_view": 1,
    "label": "Role",
-   "options": "\nManager\nHOF\nIT Lead\nCSDO\nManaging Director"
+   "options": "CX\nHOD\nHOF\nIT Lead\nCSDO\nManaging Director"
   },
   {
    "fieldname": "approver",
@@ -52,7 +52,7 @@
  "index_web_pages_for_search": 1,
  "istable": 1,
  "links": [],
- "modified": "2026-06-10 09:03:29.681026",
+ "modified": "2026-06-23 20:37:06.398024",
  "modified_by": "Administrator",
  "module": "Jpl E-sign",
  "name": "Jpl Project Approval Matrix",
