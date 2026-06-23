@@ -114,18 +114,12 @@ def _notify_approver(doc, row):
 
 
 def _notify_owner_rejection(doc, row):
-    """Email the document owner when an approver rejects."""
+    """Email the document owner and all previously-approved approvers when an approver rejects."""
     link = get_url_to_form("JPL Project Approval Request", doc.name)
     approver_full = frappe.db.get_value("User", row.approver, "full_name") or row.approver
+    owner_full = frappe.db.get_value("User", doc.owner, "full_name") or doc.owner
 
-    subject = f"Rejected: {doc.name} — Action Required"
-    message = f"""
-        <p>Dear {frappe.db.get_value("User", doc.owner, "full_name") or doc.owner},</p>
-        <p>
-            Your approval request <strong>{doc.name}</strong> has been
-            <span style="color:#ef4444; font-weight:600;">rejected</span>
-            by <strong>{approver_full}</strong> ({row.role}).
-        </p>
+    rejection_table = f"""
         <table style="border-collapse:collapse; font-size:13px; margin:16px 0;">
             <tr>
                 <td style="padding:4px 12px 4px 0; color:#6b7280;">Project</td>
@@ -143,23 +137,62 @@ def _notify_owner_rejection(doc, row):
                 <td style="padding:4px 12px 4px 0; color:#6b7280;">Reason</td>
                 <td style="padding:4px 0;">{frappe.utils.escape_html(row.remarks or "")}</td>
             </tr>
-        </table>
-        <p>Please review the feedback, make the necessary amendments, and resubmit.</p>
+        </table>"""
+
+    open_btn = f"""
         <p>
             <a href="{link}" style="
                 display:inline-block; padding:8px 20px;
                 background:#4f9cf9; color:#fff; border-radius:6px;
                 text-decoration:none; font-size:13px; font-weight:600;
             ">Open Request</a>
-        </p>
-    """
+        </p>"""
 
+    # Notify the owner — action required
     frappe.sendmail(
         recipients=[doc.owner],
-        subject=subject,
-        message=message,
+        subject=f"Rejected: {doc.name} — Action Required",
+        message=f"""
+            <p>Dear {owner_full},</p>
+            <p>
+                Your approval request <strong>{doc.name}</strong> has been
+                <span style="color:#ef4444; font-weight:600;">rejected</span>
+                by <strong>{approver_full}</strong> ({row.role}).
+            </p>
+            {rejection_table}
+            <p>Please review the feedback, make the necessary amendments, and resubmit.</p>
+            {open_btn}
+        """,
         now=True,
     )
+
+    # Notify previously-approved approvers — informational only
+    previously_approved = [
+        r for r in doc.approval_matrix
+        if r.status == "Approved" and r.approver != row.approver
+    ]
+    for approved_row in previously_approved:
+        approved_full = frappe.db.get_value("User", approved_row.approver, "full_name") or approved_row.approver
+        frappe.sendmail(
+            recipients=[approved_row.approver],
+            subject=f"FYI: {doc.name} Has Been Rejected",
+            message=f"""
+                <p>Dear {approved_full},</p>
+                <p>
+                    This is to inform you that approval request <strong>{doc.name}</strong>,
+                    which you previously approved as <strong>{approved_row.role}</strong>,
+                    has been <span style="color:#ef4444; font-weight:600;">rejected</span>
+                    by <strong>{approver_full}</strong> ({row.role}).
+                </p>
+                {rejection_table}
+                <p style="color:#6b7280; font-size:12px;">
+                    No action is required from you at this time. The owner has been notified
+                    to make amendments and resubmit.
+                </p>
+                {open_btn}
+            """,
+            now=True,
+        )
 
 
 @frappe.whitelist()
